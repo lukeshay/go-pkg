@@ -1,0 +1,50 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump_type:
+        type: choice
+        default: auto
+        description: The type of version bump
+        options:
+          - auto
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write
+  discussions: write
+
+jobs:
+  verify:
+    uses: ./.github/workflows/ci.yml
+  release:
+    runs-on: ubuntu-22.04
+    needs:
+      - verify
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: oknozor/cocogitto-action@v3
+        with:
+          git-user: "Cog Bot"
+          check-latest-tag-only: true
+      - uses: jdx/mise-action@v2
+      - run: go mod download
+      - run: cog bump --${{ inputs.bump_type }}
+      - run: echo "tag=$(git describe --tags --abbrev=0)" >> "$GITHUB_OUTPUT"
+        id: tag
+      - run: cog changelog --at ${{ steps.tag.outputs.tag }} > CHANGELOG.md
+      - run: git push --tags
+      - uses: softprops/action-gh-release@v2
+        with:
+          body_path: CHANGELOG.md
+          tag_name: ${{ steps.tag.outputs.tag }}
+          files: |
+            CHANGELOG.md
+            README.md
+            LICENSE
+          discussion_category_name: Announcements

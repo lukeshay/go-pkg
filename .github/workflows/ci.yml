@@ -1,0 +1,22 @@
+name: CI
+
+on:
+  workflow_call:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        cmd:
+          - gofmt -e -s .
+          - go vet ./...
+          - go test ./...
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: jdx/mise-action@v2
+      - run: go mod download
+      - run: ${{ matrix.cmd }}
